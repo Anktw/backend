@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     SMTP_PORT: int
 
     model_config = SettingsConfigDict(
-        env_file="../.env",        
+        env_file=".env",        
         from_attributes=True      
     )
 
