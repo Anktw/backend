@@ -1,0 +1,26 @@
+version: '3'
+services:
+  fastapi:
+    build: .
+    working_dir: /app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+  postgres:
+    image: postgres:17
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    restart: always
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
