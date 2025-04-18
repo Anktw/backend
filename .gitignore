@@ -1,3 +1,6 @@
 .venv
 __pycache__
 .env
+redis-docker-compose.yml
+test.html
+test.py
