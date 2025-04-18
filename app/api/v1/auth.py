@@ -36,7 +36,7 @@ def start_registration(payload: StartRegistrationRequest, db: Session = Depends(
     hashed_pw = get_password_hash(payload.password)
 
     save_otp_registration(email, username, hashed_pw, otp)
-    #send_registration_email(email, otp)
+    send_registration_email(email, otp)
 
     return {"msg": "OTP sent to email"}
 
