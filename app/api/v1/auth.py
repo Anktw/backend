@@ -36,7 +36,7 @@ def start_registration(payload: StartRegistrationRequest, db: Session = Depends(
     hashed_pw = get_password_hash(payload.password)
 
     save_otp_registration(email, username, hashed_pw, otp)
-    send_registration_email(email, otp)
+    #send_registration_email(email, otp)
 
     return {"msg": "OTP sent to email"}
 
@@ -61,7 +61,10 @@ def verify_otp(payload: VerifyOtpRequest, db: Session = Depends(get_db)):
     delete_otp_registration(email)
     send_account_created_email(email)
 
-    token = create_access_token({"sub": email})
+    token = create_access_token({
+    "sub": email,
+    "name": user.username if user.username else email,
+})
     return {"access_token": token, "token_type": "bearer"}
 
 @router.post("/resend-otp")
@@ -97,8 +100,6 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     return {"access_token": access_token }
 
 
-
-
 @router.post("/request-password-reset")
 def request_password_reset(payload: PasswordResetRequest, db: Session = Depends(get_db)):
     user = (
@@ -126,3 +127,5 @@ def reset_password(data: PasswordResetConfirm, db: Session = Depends(get_db)):
     user.hashed_password = get_password_hash(data.new_password)
     db.commit()
     return {"msg": "Password updated successfully"}
+
+

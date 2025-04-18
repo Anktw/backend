@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel, EmailStr
 
 class StartRegistrationRequest(BaseModel):
@@ -41,3 +42,23 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str
+
+
+class UserUpdate(BaseModel):
+    email: EmailStr | None = None
+    username: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    profile_picture_url: str | None = None
+    location: str | None = None
+    timezone: str | None = None
+
+class UserOut(BaseModel):
+    id: int
+    email: EmailStr
+    username: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+    class Config:
+        orm_mode = True
