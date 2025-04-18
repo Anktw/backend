@@ -1,14 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
+from jose import JWTError, jwt
+from app.core.config import settings
 from fastapi.security import OAuth2PasswordRequestForm
 from app.db.models.user import User
 from app.db.session import SessionLocal
 from app.schemas.user import Token, PasswordResetRequest, PasswordResetConfirm, StartRegistrationRequest, VerifyOtpRequest, LoginRequest, ResendOtpRequest
 from app.crud.user import get_user_by_email, create_user, get_user_by_username
-from app.core.security import verify_password, create_access_token, get_password_hash, create_password_reset_token, verify_password_reset_token
+from app.core.security import verify_password, create_access_token, get_password_hash, create_password_reset_token, verify_password_reset_token, create_refresh_token
 from app.services.email import send_reset_email, send_registration_email, send_account_created_email
 from app.services.redis_otp import save_otp_registration,get_otp_registration, delete_otp_registration
 from app.utils.otp import generate_otp
+
 
 
 
@@ -61,11 +64,20 @@ def verify_otp(payload: VerifyOtpRequest, db: Session = Depends(get_db)):
     delete_otp_registration(email)
     send_account_created_email(email)
 
-    token = create_access_token({
-    "sub": email,
-    "name": user.username if user.username else email,
-})
-    return {"access_token": token, "token_type": "bearer"}
+    access_token = create_access_token({
+        "sub": email,
+        "name": user.username if user.username else email,
+    })
+
+    refresh_token = create_refresh_token({
+        "sub": email
+    })
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
 
 @router.post("/resend-otp")
 def resend_otp(payload: ResendOtpRequest):
@@ -97,7 +109,13 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Invalid credentials")
 
     access_token = create_access_token({"sub": user.email})
-    return {"access_token": access_token }
+    refresh_token = create_refresh_token({"sub": user.email})
+    
+    return {
+    "access_token": access_token,
+    "refresh_token": refresh_token,
+    "token_type": "bearer"
+}
 
 
 @router.post("/request-password-reset")
@@ -127,5 +145,20 @@ def reset_password(data: PasswordResetConfirm, db: Session = Depends(get_db)):
     user.hashed_password = get_password_hash(data.new_password)
     db.commit()
     return {"msg": "Password updated successfully"}
+
+
+@router.post("/refresh", response_model=Token)
+def refresh_token(request: Request):
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="No refresh token provided")
+    try:
+        payload = jwt.decode(refresh_token, settings.REFRESH_SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email = payload.get("sub")
+    except JWTError:
+        raise HTTPException(status_code=403, detail="Invalid refresh token")
+
+    access_token = create_access_token({"sub": email})
+    return {"access_token": access_token}
 
 
