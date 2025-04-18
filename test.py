@@ -1,3 +1,4 @@
-from app.core.config import settings
 
-print(settings.SMTP_USER)
+email="FLsjfo@678687"
+email.lower()
+print(email)

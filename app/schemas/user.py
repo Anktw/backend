@@ -1,5 +1,22 @@
 from pydantic import BaseModel, EmailStr
 
+class StartRegistrationRequest(BaseModel):
+    email: EmailStr
+    username: str
+    password: str
+
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    timezone: str
+
+class ResendOtpRequest(BaseModel):
+    email: EmailStr
+
+class LoginRequest(BaseModel):
+    username_or_email: str
+    password: str
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -19,7 +36,7 @@ class Token(BaseModel):
     token_type: str = "bearer"
     
 class PasswordResetRequest(BaseModel):
-    email: EmailStr
+    email_or_username: EmailStr
 
 class PasswordResetConfirm(BaseModel):
     token: str
