@@ -130,7 +130,7 @@ def request_password_reset(payload: PasswordResetRequest, db: Session = Depends(
     )
     if user:
         reset_token = create_password_reset_token(user.email)
-        send_reset_email(user.email, reset_token)
+        #send_reset_email(user.email, reset_token)
 
     return {"msg": "If your account exists, a password reset email has been sent."}
 
@@ -160,5 +160,3 @@ def refresh_token(request: Request):
 
     access_token = create_access_token({"sub": email})
     return {"access_token": access_token}
-
-

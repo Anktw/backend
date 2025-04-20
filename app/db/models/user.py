@@ -1,4 +1,5 @@
 from sqlalchemy import Boolean, Column, Integer, String, DateTime, Text, func
+from sqlalchemy.orm import validates
 from app.db.base import Base
 from datetime import datetime
 
@@ -30,7 +31,19 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True, default=None)
     last_login_at = Column(DateTime(timezone=True), nullable=True, default=None)
 
+    @validates('email')
+    def lowercase_email(self, key, email):
+        return email.lower()
 
+    @validates('username')
+    def lowercase_username(self, key, username):
+        return username.lower()
+    @validates('first_name', 'last_name')
+
+    def validate_name(self, key, name):
+        self.title = name.title()
+        return name.title()
+        
 class PendingUser(Base):
     __tablename__ = "pending_users"
 
