@@ -248,10 +248,13 @@ def auth_google_callback(request: StarletteRequest, db: Session = Depends(get_db
         db.refresh(user)
     access_token = create_access_token({'sub': user.email})
     refresh_token = create_refresh_token({'sub': user.email})
+
+    response = RedirectResponse(url='/user/dashboard')
     return {
         'access_token': access_token,
         'refresh_token': refresh_token,
-        'token_type': 'bearer'
+        'token_type': 'bearer',
+        'response': response
     }
 
 @router.get('/github/callback')
@@ -276,8 +279,10 @@ async def auth_github_callback(request: StarletteRequest, db: Session = Depends(
         db.refresh(user)
     access_token = create_access_token({'sub': user.email})
     refresh_token = create_refresh_token({'sub': user.email})
+    response = RedirectResponse(url='/user/dashboard')
     return {
         'access_token': access_token,
         'refresh_token': refresh_token,
-        'token_type': 'bearer'
+        'token_type': 'bearer',
+        'response': response
     }
