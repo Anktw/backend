@@ -183,7 +183,7 @@ def reset_password(data: PasswordResetConfirm, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=Token)
-def refresh_token(request: Request):
+async def refresh_token(request: Request):
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
         raise HTTPException(status_code=401, detail="No refresh token provided")
@@ -236,9 +236,9 @@ async def login_github(request: StarletteRequest):
     return await oauth.github.authorize_redirect(request, redirect_uri)
 
 @router.get('/google/callback')
-def auth_google_callback(request: StarletteRequest, db: Session = Depends(get_db)):
-    token = oauth.google.authorize_access_token(request)
-    user_info = oauth.google.parse_id_token(request, token)
+async def auth_google_callback(request: StarletteRequest, db: Session = Depends(get_db)):
+    token = await oauth.google.authorize_access_token(request)
+    user_info = await oauth.google.parse_id_token(request, token)
     email = user_info.get('email')
     if not email:
         raise HTTPException(status_code=400, detail='Email not available from Google account')
