@@ -235,7 +235,7 @@ async def login_github(request: StarletteRequest):
     redirect_uri = str(request.url_for('auth_github_callback'))
     return await oauth.github.authorize_redirect(request, redirect_uri)
 
-@router.get('/auth/google/callback')
+@router.get('/google/callback')
 def auth_google_callback(request: StarletteRequest, db: Session = Depends(get_db)):
     token = oauth.google.authorize_access_token(request)
     user_info = oauth.google.parse_id_token(request, token)
