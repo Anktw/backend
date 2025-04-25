@@ -16,8 +16,6 @@ from authlib.integrations.starlette_client import OAuth
 from starlette.config import Config
 from starlette.requests import Request as StarletteRequest
 
-
-
 router = APIRouter()
 
 def get_db():
@@ -237,22 +235,32 @@ async def login_github(request: StarletteRequest):
 
 @router.get('/google/callback')
 async def auth_google_callback(request: StarletteRequest, db: Session = Depends(get_db)):
-    token = await oauth.google.authorize_access_token(request)
-    user_info = await oauth.google.parse_id_token(request, token)
-    email = user_info.get('email')
-    if not email:
-        raise HTTPException(status_code=400, detail='Email not available from Google account')
-    email = email.lower()
-    user = get_user_by_email(db, email)
-    if not user:
-        user = User(email=email, username=email.split('@')[0], hashed_password='')
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    access_token = create_access_token({'sub': user.email})
-    refresh_token = create_refresh_token({'sub': user.email})
-    redirect_url = f"https://accounts-unkit.vercel.app/user/dashboard?access_token={access_token}&refresh_token={refresh_token}"
-    return RedirectResponse(url=redirect_url)
+    try:
+        token = await oauth.google.authorize_access_token(request)
+        if 'id_token' not in token:
+            raise HTTPException(status_code=400, detail="Missing id_token in response")
+        user_info = await oauth.google.parse_id_token(request, token)
+        email = user_info.get('email')
+        if not email:
+            raise HTTPException(status_code=400, detail='Email not available from Google account')
+        
+        email = email.lower()
+        user = get_user_by_email(db, email)
+        if not user:
+            user = User(email=email, username=email.split('@')[0], hashed_password='')
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        access_token = create_access_token({'sub': user.email})
+        refresh_token = create_refresh_token({'sub': user.email})
+        redirect_url = f"https://accounts-unkit.vercel.app/?access_token={access_token}&refresh_token={refresh_token}"
+        return RedirectResponse(url=redirect_url)
+
+    except Exception as e:
+        print(f"OAuth error: {e}")  # Better yet, use proper logging
+        raise HTTPException(status_code=500, detail="Internal server error during Google OAuth callback")
+
 
 @router.get('/github/callback')
 async def auth_github_callback(request: StarletteRequest, db: Session = Depends(get_db)):
@@ -276,5 +284,5 @@ async def auth_github_callback(request: StarletteRequest, db: Session = Depends(
         db.refresh(user)
     access_token = create_access_token({'sub': user.email})
     refresh_token = create_refresh_token({'sub': user.email})
-    redirect_url = f"https://accounts-unkit.vercel.app/user/dashboard?access_token={access_token}&refresh_token={refresh_token}"
+    redirect_url = f"https://accounts-unkit.vercel.app/?access_token={access_token}&refresh_token={refresh_token}"
     return RedirectResponse(url=redirect_url)
