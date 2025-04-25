@@ -29,8 +29,7 @@ class UserOut(BaseModel):
     email: EmailStr
     is_admin: bool
 
-    class Config:
-        from_attributes = True
+    
 
 class Token(BaseModel):
     access_token: str
@@ -59,6 +58,11 @@ class UserOut(BaseModel):
     username: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
+
+
+    class Config:
+        from_attributes = True
+
 
     class Config:
         from_attributes = True
