@@ -235,7 +235,7 @@ async def login_github(request: StarletteRequest):
     redirect_uri = str(request.url_for('auth_github_callback'))
     return await oauth.github.authorize_redirect(request, redirect_uri)
 
-@router.get('/auth/google/callback')
+@router.get('/google/callback')
 def auth_google_callback(request: StarletteRequest, db: Session = Depends(get_db)):
     token = oauth.google.authorize_access_token(request)
     user_info = oauth.google.parse_id_token(request, token)
@@ -254,7 +254,7 @@ def auth_google_callback(request: StarletteRequest, db: Session = Depends(get_db
     redirect_url = f"https://accounts-unkit.vercel.app/user/dashboard?access_token={access_token}&refresh_token={refresh_token}"
     return RedirectResponse(url=redirect_url)
 
-@router.get('/auth/github/callback')
+@router.get('/github/callback')
 async def auth_github_callback(request: StarletteRequest, db: Session = Depends(get_db)):
     token = await oauth.github.authorize_access_token(request)
     resp = await oauth.github.get('user', token=token)
