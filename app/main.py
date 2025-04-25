@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from app.api.v1 import auth, admin, user
+from starlette.middleware.sessions import SessionMiddleware
+from app.core.config import settings
 
 app = FastAPI()
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
 app.include_router(user.router, prefix="/user", tags=["user"]) 
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)

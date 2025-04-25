@@ -1,13 +1,16 @@
 from email import message
+from email.utils import formataddr
 import smtplib
 from email.mime.text import MIMEText
 from app.core.config import settings
 
+sender_name = "unkit.vercel.app"
+sender_email = settings.SMTP_USER
 
 def send_email(email_to: str, subject: str, body: str):
     msg = MIMEText(body, "html")
     msg["Subject"] = subject
-    msg["From"] = settings.SMTP_USER
+    msg["From"] = formataddr((sender_name, sender_email))
     msg["To"] = email_to
     with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:
         server.starttls()
