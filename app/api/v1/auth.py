@@ -197,7 +197,7 @@ def refresh_token(request: Request):
     return {"access_token": access_token}
 
 
-# Microsoft OAuth config
+# Google and Github OAuth config
 config = Config(environ={
     'GOOGLE_CLIENT_ID': settings.GOOGLE_CLIENT_ID,
     'GOOGLE_CLIENT_SECRET': settings.GOOGLE_CLIENT_SECRET,
@@ -235,7 +235,7 @@ async def login_github(request: StarletteRequest):
     redirect_uri = str(request.url_for('auth_github_callback'))
     return await oauth.github.authorize_redirect(request, redirect_uri)
 
-@router.get('/auth/google/callback')
+@router.get('/google/callback')
 def auth_google_callback(request: StarletteRequest, db: Session = Depends(get_db)):
     token = oauth.google.authorize_access_token(request)
     user_info = oauth.google.parse_id_token(request, token)
@@ -254,7 +254,7 @@ def auth_google_callback(request: StarletteRequest, db: Session = Depends(get_db
         'token_type': 'bearer'
     }
 
-@router.get('/auth/github/callback')
+@router.get('/github/callback')
 async def auth_github_callback(request: StarletteRequest, db: Session = Depends(get_db)):
     token = await oauth.github.authorize_access_token(request)
     resp = await oauth.github.get('user', token=token)
