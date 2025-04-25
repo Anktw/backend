@@ -21,6 +21,8 @@ def save_otp_registration(email: str, username: str, hashed_password: str, otp: 
     }
     r.set(f"otp_reg:{email}", json.dumps(data), ex=ttl_seconds)
 
+
+
 def get_otp_registration(email: str):
     email = email.lower()
     data = r.get(f"otp_reg:{email}")
@@ -29,3 +31,21 @@ def get_otp_registration(email: str):
 def delete_otp_registration(email: str):
     email = email.lower()
     r.delete(f"otp_reg:{email}")
+
+
+def save_otp_reset(email: str, otp: str, ttl_seconds=600):
+    email = email.lower()
+    data = {
+        "email": email,
+        "otp": otp,
+    }
+    r.set(f"otp_reset:{email}", json.dumps(data), ex=ttl_seconds)
+
+def get_otp_reset(email: str):
+    email = email.lower()
+    data = r.get(f"otp_reset:{email}")
+    return json.loads(data) if data else None
+
+def delete_otp_reset(email: str):
+    email = email.lower()
+    r.delete(f"otp_reset:{email}")

@@ -8,8 +8,8 @@ from app.db.session import SessionLocal
 from app.schemas.user import Token, PasswordResetRequest, PasswordResetConfirm, StartRegistrationRequest, VerifyOtpRequest, LoginRequest, ResendOtpRequest
 from app.crud.user import get_user_by_email, create_user, get_user_by_username
 from app.core.security import verify_password, create_access_token, get_password_hash, create_password_reset_token, verify_password_reset_token, create_refresh_token
-from app.services.email import send_reset_email, send_registration_email, send_account_created_email
-from app.services.redis_otp import save_otp_registration,get_otp_registration, delete_otp_registration
+from app.services.email import send_reset_email, send_registration_email, send_account_created_email, send_password_changed_email
+from app.services.redis_otp import save_otp_registration,get_otp_registration, delete_otp_registration, save_otp_reset, get_otp_reset, delete_otp_reset
 from app.utils.otp import generate_otp
 
 
@@ -129,11 +129,40 @@ def request_password_reset(payload: PasswordResetRequest, db: Session = Depends(
         .first()
     )
     if user:
-        reset_token = create_password_reset_token(user.email)
-        #send_reset_email(user.email, reset_token)
+        email = user.email.lower()
+        otp = generate_otp()
+        save_otp_reset(email=email, otp=otp)
+        send_reset_email(email, otp)
 
     return {"msg": "If your account exists, a password reset email has been sent."}
 
+
+@router.post("/verify-reset-otp")
+def verify_reset_otp(payload: VerifyOtpRequest):
+    email = payload.email.lower()
+    reg = get_otp_reset(email)
+
+    if not reg or reg["otp"] != payload.otp:
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP")
+    
+    delete_otp_reset(email)
+    reset_token = create_password_reset_token(email)
+    return {"reset_token": reset_token}
+
+
+@router.post("/resend-reset-otp")
+def resend_reset_otp(payload: ResendOtpRequest):
+    email = payload.email.lower()
+
+    reg = get_otp_reset(email)
+    if not reg:
+        raise HTTPException(400, "No pending password reset found for this email")
+
+    new_otp = generate_otp()
+    save_otp_reset(email=email, otp=new_otp)
+    send_reset_email(email, new_otp)
+
+    return {"msg": "A new OTP has been sent to your email."}
 
 
 @router.post("/reset-password")
@@ -142,9 +171,12 @@ def reset_password(data: PasswordResetConfirm, db: Session = Depends(get_db)):
     user = get_user_by_email(db, email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
     user.hashed_password = get_password_hash(data.new_password)
     db.commit()
+    send_password_changed_email(user.email)
     return {"msg": "Password updated successfully"}
+
 
 
 @router.post("/refresh", response_model=Token)
