@@ -197,11 +197,13 @@ def refresh_token(request: Request):
     return {"access_token": access_token}
 
 
-# Google OAuth config
+# Microsoft OAuth config
 config = Config(environ={
     'GOOGLE_CLIENT_ID': settings.GOOGLE_CLIENT_ID,
     'GOOGLE_CLIENT_SECRET': settings.GOOGLE_CLIENT_SECRET,
     'SECRET_KEY': settings.SECRET_KEY,
+    'MICROSOFT_CLIENT_ID': getattr(settings, 'MICROSOFT_CLIENT_ID', ''),
+    'MICROSOFT_CLIENT_SECRET': getattr(settings, 'MICROSOFT_CLIENT_SECRET', ''),
 })
 oauth = OAuth(config)
 oauth.register(
@@ -211,16 +213,47 @@ oauth.register(
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
     client_kwargs={'scope': 'openid email profile'}
 )
+oauth.register(
+    name='microsoft',
+    client_id=getattr(settings, 'MICROSOFT_CLIENT_ID', ''),
+    client_secret=getattr(settings, 'MICROSOFT_CLIENT_SECRET', ''),
+    server_metadata_url='https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid email profile'}
+)
 
 @router.get('/login/google')
 async def login_google(request: StarletteRequest):
     redirect_uri = str(request.url_for('auth_google_callback'))
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
+@router.get('/login/microsoft')
+async def login_microsoft(request: StarletteRequest):
+    redirect_uri = str(request.url_for('auth_microsoft_callback'))
+    return await oauth.microsoft.authorize_redirect(request, redirect_uri)
+
 @router.get('/auth/google/callback')
 def auth_google_callback(request: StarletteRequest, db: Session = Depends(get_db)):
     token = oauth.google.authorize_access_token(request)
     user_info = oauth.google.parse_id_token(request, token)
+    email = user_info['email'].lower()
+    user = get_user_by_email(db, email)
+    if not user:
+        user = User(email=email, username=email.split('@')[0], hashed_password='')
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    access_token = create_access_token({'sub': user.email})
+    refresh_token = create_refresh_token({'sub': user.email})
+    return {
+        'access_token': access_token,
+        'refresh_token': refresh_token,
+        'token_type': 'bearer'
+    }
+
+@router.get('/auth/microsoft/callback')
+def auth_microsoft_callback(request: StarletteRequest, db: Session = Depends(get_db)):
+    token = oauth.microsoft.authorize_access_token(request)
+    user_info = oauth.microsoft.parse_id_token(request, token)
     email = user_info['email'].lower()
     user = get_user_by_email(db, email)
     if not user:
