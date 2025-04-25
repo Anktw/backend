@@ -202,8 +202,8 @@ config = Config(environ={
     'GOOGLE_CLIENT_ID': settings.GOOGLE_CLIENT_ID,
     'GOOGLE_CLIENT_SECRET': settings.GOOGLE_CLIENT_SECRET,
     'SECRET_KEY': settings.SECRET_KEY,
-    'MICROSOFT_CLIENT_ID': getattr(settings, 'MICROSOFT_CLIENT_ID', ''),
-    'MICROSOFT_CLIENT_SECRET': getattr(settings, 'MICROSOFT_CLIENT_SECRET', ''),
+    'GITHUB_CLIENT_ID': getattr(settings, 'GITHUB_CLIENT_ID', ''),
+    'GITHUB_CLIENT_SECRET': getattr(settings, 'GITHUB_CLIENT_SECRET', ''),
 })
 oauth = OAuth(config)
 oauth.register(
@@ -214,11 +214,15 @@ oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 oauth.register(
-    name='microsoft',
-    client_id=getattr(settings, 'MICROSOFT_CLIENT_ID', ''),
-    client_secret=getattr(settings, 'MICROSOFT_CLIENT_SECRET', ''),
-    server_metadata_url='https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration',
-    client_kwargs={'scope': 'openid email profile'}
+    name='github',
+    client_id=getattr(settings, 'GITHUB_CLIENT_ID', ''),
+    client_secret=getattr(settings, 'GITHUB_CLIENT_SECRET', ''),
+    access_token_url='https://github.com/login/oauth/access_token',
+    access_token_params=None,
+    authorize_url='https://github.com/login/oauth/authorize',
+    authorize_params=None,
+    api_base_url='https://api.github.com/',
+    client_kwargs={'scope': 'user:email'}
 )
 
 @router.get('/login/google')
@@ -226,10 +230,10 @@ async def login_google(request: StarletteRequest):
     redirect_uri = str(request.url_for('auth_google_callback'))
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
-@router.get('/login/microsoft')
-async def login_microsoft(request: StarletteRequest):
-    redirect_uri = str(request.url_for('auth_microsoft_callback'))
-    return await oauth.microsoft.authorize_redirect(request, redirect_uri)
+@router.get('/login/github')
+async def login_github(request: StarletteRequest):
+    redirect_uri = str(request.url_for('auth_github_callback'))
+    return await oauth.github.authorize_redirect(request, redirect_uri)
 
 @router.get('/auth/google/callback')
 def auth_google_callback(request: StarletteRequest, db: Session = Depends(get_db)):
@@ -250,14 +254,23 @@ def auth_google_callback(request: StarletteRequest, db: Session = Depends(get_db
         'token_type': 'bearer'
     }
 
-@router.get('/auth/microsoft/callback')
-def auth_microsoft_callback(request: StarletteRequest, db: Session = Depends(get_db)):
-    token = oauth.microsoft.authorize_access_token(request)
-    user_info = oauth.microsoft.parse_id_token(request, token)
-    email = user_info['email'].lower()
+@router.get('/auth/github/callback')
+async def auth_github_callback(request: StarletteRequest, db: Session = Depends(get_db)):
+    token = await oauth.github.authorize_access_token(request)
+    resp = await oauth.github.get('user', token=token)
+    profile = resp.json()
+    email = profile.get('email')
+    if not email:
+        # fetch primary email if not public
+        emails_resp = await oauth.github.get('user/emails', token=token)
+        emails = emails_resp.json()
+        email = next((e['email'] for e in emails if e.get('primary')), None)
+    if not email:
+        raise HTTPException(400, 'Unable to retrieve email from GitHub')
+    email = email.lower()
     user = get_user_by_email(db, email)
     if not user:
-        user = User(email=email, username=email.split('@')[0], hashed_password='')
+        user = User(email=email, username=profile.get('login', email.split('@')[0]), hashed_password='')
         db.add(user)
         db.commit()
         db.refresh(user)

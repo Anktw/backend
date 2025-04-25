@@ -18,8 +18,8 @@ class Settings(BaseSettings):
 
     GOOGLE_CLIENT_ID: str
     GOOGLE_CLIENT_SECRET: str
-    MICROSOFT_CLIENT_ID: str
-    MICROSOFT_CLIENT_SECRET: str
+    GITHUB_CLIENT_ID: str
+    GITHUB_CLIENT_SECRET: str
 
 
     model_config = SettingsConfigDict(
