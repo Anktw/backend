@@ -17,7 +17,7 @@ from app.api.deps import get_db
 
 router = APIRouter()
 
-# ---------- GOOGLE AUTH ----------
+# GOOGLE AUTH
 @router.get("/auth/google")
 async def auth_google():
     redirect_uri = f"{settings.BACKEND_URL}/api/auth/callback/google"
@@ -75,14 +75,13 @@ async def callback_google(code: str, db: Session = Depends(get_db)):
     jwt_token = create_access_token({"sub": user.email})
     refresh_token = create_refresh_token({"sub": user.email})
 
-    # ✅ Redirect to frontend page to finalize session cookie
     redirect_url = (
-        f"{settings.FRONTEND_URL}/auth/social/callback"
+        f"{settings.FRONTEND_URL}/auth/user/callback"
         f"?access_token={jwt_token}&refresh_token={refresh_token}"
     )
     return RedirectResponse(url=redirect_url, status_code=302)
 
-# ---------- GITHUB AUTH ----------
+# GITHUB AUTH 
 @router.get("/auth/github")
 async def auth_github():
     redirect_uri = f"{settings.BACKEND_URL}/api/auth/callback/github"
@@ -145,7 +144,7 @@ async def callback_github(code: str, db: Session = Depends(get_db)):
     refresh_token = create_refresh_token({"sub": user.email})
 
     redirect_url = (
-        f"{settings.FRONTEND_URL}/auth/social/callback"
+        f"{settings.FRONTEND_URL}/auth/user/callback"
         f"?access_token={jwt_token}&refresh_token={refresh_token}"
     )
     return RedirectResponse(url=redirect_url, status_code=302)
