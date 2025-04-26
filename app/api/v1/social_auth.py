@@ -1,20 +1,23 @@
-from fastapi import APIRouter, Request, Response, Depends, status
+from fastapi import APIRouter, Response, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from urllib.parse import urlencode
 import httpx
+import secrets
+
+from sqlalchemy.orm import Session
 from app.core.config import settings
-from app.api.deps import get_db
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    get_password_hash,
+)
 from app.db.models.user import User
 from app.crud.user import get_user_by_email
-from app.core.security import create_access_token
-from sqlalchemy.orm import Session
-from app.schemas.user import UserCreate
-from app.core.security import get_password_hash
-import secrets
+from app.api.deps import get_db
 
 router = APIRouter()
 
-# GOOGLE AUTH
+# ---------- GOOGLE AUTH ----------
 @router.get("/auth/google")
 async def auth_google():
     redirect_uri = f"{settings.BACKEND_URL}/api/auth/callback/google"
@@ -27,10 +30,10 @@ async def auth_google():
         "prompt": "consent"
     }
     url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
-    return RedirectResponse(url)
+    return RedirectResponse(url, status_code=302)
 
 @router.get("/auth/callback/google")
-async def callback_google(code: str, response: Response, db: Session = Depends(get_db)):
+async def callback_google(code: str, db: Session = Depends(get_db)):
     token_url = "https://oauth2.googleapis.com/token"
     redirect_uri = f"{settings.BACKEND_URL}/api/auth/callback/google"
 
@@ -44,11 +47,13 @@ async def callback_google(code: str, response: Response, db: Session = Depends(g
         })
 
         tokens = token_resp.json()
-        access_token_google = tokens.get("access_token")
+        access_token = tokens.get("access_token")
+        if not access_token:
+            raise HTTPException(400, detail="Google token exchange failed")
 
         userinfo_resp = await client.get(
             "https://openidconnect.googleapis.com/v1/userinfo",
-            headers={"Authorization": f"Bearer {access_token_google}"}
+            headers={"Authorization": f"Bearer {access_token}"}
         )
         userinfo = userinfo_resp.json()
 
@@ -68,12 +73,16 @@ async def callback_google(code: str, response: Response, db: Session = Depends(g
         db.refresh(user)
 
     jwt_token = create_access_token({"sub": user.email})
-    response = RedirectResponse(url=f"{settings.FRONTEND_URL}/user/dashboard")
-    response.set_cookie("session", jwt_token, httponly=True, secure=True)
-    return response
+    refresh_token = create_refresh_token({"sub": user.email})
 
+    # ✅ Redirect to frontend page to finalize session cookie
+    redirect_url = (
+        f"{settings.FRONTEND_URL}/auth/social/callback"
+        f"?access_token={jwt_token}&refresh_token={refresh_token}"
+    )
+    return RedirectResponse(url=redirect_url, status_code=302)
 
-# GITHUB AUTH
+# ---------- GITHUB AUTH ----------
 @router.get("/auth/github")
 async def auth_github():
     redirect_uri = f"{settings.BACKEND_URL}/api/auth/callback/github"
@@ -83,10 +92,10 @@ async def auth_github():
         "scope": "read:user user:email",
     }
     url = f"https://github.com/login/oauth/authorize?{urlencode(params)}"
-    return RedirectResponse(url)
+    return RedirectResponse(url, status_code=302)
 
 @router.get("/auth/callback/github")
-async def callback_github(code: str, response: Response, db: Session = Depends(get_db)):
+async def callback_github(code: str, db: Session = Depends(get_db)):
     token_url = "https://github.com/login/oauth/access_token"
     headers = {"Accept": "application/json"}
 
@@ -98,23 +107,25 @@ async def callback_github(code: str, response: Response, db: Session = Depends(g
         })
 
         tokens = token_resp.json()
-        access_token_github = tokens["access_token"]
+        access_token = tokens.get("access_token")
+        if not access_token:
+            raise HTTPException(400, detail="GitHub token exchange failed")
 
         user_resp = await client.get(
             "https://api.github.com/user",
-            headers={"Authorization": f"Bearer {access_token_github}"}
+            headers={"Authorization": f"Bearer {access_token}"}
         )
         userinfo = user_resp.json()
 
         email_resp = await client.get(
             "https://api.github.com/user/emails",
-            headers={"Authorization": f"Bearer {access_token_github}"}
+            headers={"Authorization": f"Bearer {access_token}"}
         )
         emails = email_resp.json()
         email = next((e["email"] for e in emails if e.get("primary") and e.get("verified")), None)
 
     if not email:
-        return {"error": "Could not verify email"}
+        raise HTTPException(400, detail="Could not retrieve a verified email from GitHub")
 
     username = userinfo["login"]
 
@@ -131,6 +142,10 @@ async def callback_github(code: str, response: Response, db: Session = Depends(g
         db.refresh(user)
 
     jwt_token = create_access_token({"sub": user.email})
-    response = RedirectResponse(url=f"{settings.FRONTEND_URL}/user/dashboard")
-    response.set_cookie("session", jwt_token, httponly=True, secure=True)
-    return response
+    refresh_token = create_refresh_token({"sub": user.email})
+
+    redirect_url = (
+        f"{settings.FRONTEND_URL}/auth/social/callback"
+        f"?access_token={jwt_token}&refresh_token={refresh_token}"
+    )
+    return RedirectResponse(url=redirect_url, status_code=302)
