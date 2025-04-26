@@ -11,10 +11,6 @@ from app.core.security import verify_password, create_access_token, get_password
 from app.services.email import send_reset_email, send_registration_email, send_account_created_email, send_password_changed_email
 from app.services.redis_otp import save_otp_registration,get_otp_registration, delete_otp_registration, save_otp_reset, get_otp_reset, delete_otp_reset
 from app.utils.otp import generate_otp
-from fastapi.responses import RedirectResponse
-from authlib.integrations.starlette_client import OAuth
-from starlette.config import Config
-from starlette.requests import Request as StarletteRequest
 
 router = APIRouter()
 
@@ -193,96 +189,3 @@ async def refresh_token(request: Request):
 
     access_token = create_access_token({"sub": email})
     return {"access_token": access_token}
-
-
-# Google and Github OAuth config
-config = Config(environ={
-    'GOOGLE_CLIENT_ID': settings.GOOGLE_CLIENT_ID,
-    'GOOGLE_CLIENT_SECRET': settings.GOOGLE_CLIENT_SECRET,
-    'SECRET_KEY': settings.SECRET_KEY,
-    'GITHUB_CLIENT_ID': getattr(settings, 'GITHUB_CLIENT_ID', ''),
-    'GITHUB_CLIENT_SECRET': getattr(settings, 'GITHUB_CLIENT_SECRET', ''),
-})
-oauth = OAuth(config)
-oauth.register(
-    name='google',
-    client_id=settings.GOOGLE_CLIENT_ID,
-    client_secret=settings.GOOGLE_CLIENT_SECRET,
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
-    client_kwargs={'scope': 'openid email profile'}
-)
-oauth.register(
-    name='github',
-    client_id=getattr(settings, 'GITHUB_CLIENT_ID', ''),
-    client_secret=getattr(settings, 'GITHUB_CLIENT_SECRET', ''),
-    access_token_url='https://github.com/login/oauth/access_token',
-    access_token_params=None,
-    authorize_url='https://github.com/login/oauth/authorize',
-    authorize_params=None,
-    api_base_url='https://api.github.com/',
-    client_kwargs={'scope': 'user:email'}
-)
-
-@router.get('/login/google')
-async def login_google(request: StarletteRequest):
-    redirect_uri = str(request.url_for('auth_google_callback'))
-    return await oauth.google.authorize_redirect(request, redirect_uri)
-
-@router.get('/login/github')
-async def login_github(request: StarletteRequest):
-    redirect_uri = str(request.url_for('auth_github_callback'))
-    return await oauth.github.authorize_redirect(request, redirect_uri)
-
-@router.get('/google/callback')
-async def auth_google_callback(request: StarletteRequest, db: Session = Depends(get_db)):
-    try:
-        token = await oauth.google.authorize_access_token(request)
-        if 'id_token' not in token:
-            raise HTTPException(status_code=400, detail="Missing id_token in response")
-        user_info = await oauth.google.parse_id_token(request, token)
-        email = user_info.get('email')
-        if not email:
-            raise HTTPException(status_code=400, detail='Email not available from Google account')
-        
-        email = email.lower()
-        user = get_user_by_email(db, email)
-        if not user:
-            user = User(email=email, username=email.split('@')[0], hashed_password='')
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-
-        access_token = create_access_token({'sub': user.email})
-        refresh_token = create_refresh_token({'sub': user.email})
-        redirect_url = f"https://accounts-unkit.vercel.app/?access_token={access_token}&refresh_token={refresh_token}"
-        return RedirectResponse(url=redirect_url)
-
-    except Exception as e:
-        print(f"OAuth error: {e}")  # Better yet, use proper logging
-        raise HTTPException(status_code=500, detail="Internal server error during Google OAuth callback")
-
-
-@router.get('/github/callback')
-async def auth_github_callback(request: StarletteRequest, db: Session = Depends(get_db)):
-    token = await oauth.github.authorize_access_token(request)
-    resp = await oauth.github.get('user', token=token)
-    profile = resp.json()
-    email = profile.get('email')
-    if not email:
-        # fetch primary email if not public
-        emails_resp = await oauth.github.get('user/emails', token=token)
-        emails = emails_resp.json()
-        email = next((e['email'] for e in emails if e.get('primary')), None)
-    if not email:
-        raise HTTPException(400, 'Unable to retrieve email from GitHub')
-    email = email.lower()
-    user = get_user_by_email(db, email)
-    if not user:
-        user = User(email=email, username=profile.get('login', email.split('@')[0]), hashed_password='')
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    access_token = create_access_token({'sub': user.email})
-    refresh_token = create_refresh_token({'sub': user.email})
-    redirect_url = f"https://accounts-unkit.vercel.app/?access_token={access_token}&refresh_token={refresh_token}"
-    return RedirectResponse(url=redirect_url)
