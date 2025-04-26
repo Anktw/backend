@@ -58,7 +58,7 @@ async def callback_google(code: str, db: Session = Depends(get_db)):
         userinfo = userinfo_resp.json()
 
     email = userinfo["email"]
-    username = userinfo.get("name") or email.split("@")[0]
+    username = email.split("@")[0]
 
     user = get_user_by_email(db, email)
     if not user:
