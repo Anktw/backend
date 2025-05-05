@@ -4,7 +4,7 @@ import smtplib
 from email.mime.text import MIMEText
 from app.core.config import settings
 
-sender_name = "unkit.vercel.app"
+sender_name = "unkit.site"
 sender_email = settings.SMTP_USER
 
 def send_email(email_to: str, subject: str, body: str):
@@ -20,7 +20,6 @@ def send_email(email_to: str, subject: str, body: str):
 
 #Registration OTP Email
 def send_registration_email(email_to: str, otp: str):
-    #verify_link = f"http://localhost:3000/verify-otp?email={email_to}"
     subject = "Verify Your Email Address"
     body = f"""<body style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 40px; color: #333;">
   <table style="max-width: 600px; margin: auto; background: #ffffff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
@@ -32,7 +31,7 @@ def send_registration_email(email_to: str, otp: str):
     <tr>
       <td style="font-size: 16px; line-height: 1.6; color: #555;">
         Hi,<br><br>
-        Thanks for registering! Please verify your email address using the OTP below:
+        Please verify your email address using the OTP below:
       </td>
     </tr>
     <tr>
@@ -65,7 +64,7 @@ def send_account_created_email(email_to: str):
     <tr>
       <td style="font-size: 16px; line-height: 1.6; color: #555;">
         Hi,<br><br>
-        Your account has been successfully verified and created 🎉<br><br>
+        Your account has been successfully verified and created...<br><br>
         You can now log in and start using the app!
       </td>
     </tr>
@@ -82,7 +81,6 @@ def send_account_created_email(email_to: str):
 
 #Reset Password Email
 def send_reset_email(email_to: str, otp: str):
-    #reset_link = f"http://localhost:3000/reset-password?token={reset_token}" not working
     subject = "Password Reset Request"
     body = f"""\
 <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 40px; color: #333;">
