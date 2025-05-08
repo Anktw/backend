@@ -44,12 +44,3 @@ class User(Base):
         self.title = name.title()
         return name.title()
         
-class PendingUser(Base):
-    __tablename__ = "pending_users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, nullable=False)
-    username = Column(String, nullable=False)
-    hashed_password = Column(String, nullable=False)
-    otp = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
