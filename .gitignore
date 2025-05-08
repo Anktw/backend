@@ -5,3 +5,5 @@ redis-docker-compose.yml
 test.html
 test.py
 test2.py
+.vs
+.vscode
