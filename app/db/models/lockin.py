@@ -5,10 +5,12 @@ class Task(Base):
     __tablename__ = "tasks"
     taskid = Column(Integer, primary_key=True, index=True)
     username = Column(String, ForeignKey("users.username"), nullable=False)
+    name = Column(String, nullable=False)
     estimated_time = Column(Integer, nullable=False)
     completion_time = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     completed = Column(Boolean, default=False)
+    taskidbyfrontend = Column(Integer, nullable=True)
 
 class SavedTask(Base):
     __tablename__ = "saved_tasks"
@@ -16,3 +18,4 @@ class SavedTask(Base):
     username = Column(String, ForeignKey("users.username"), nullable=False)
     name = Column(String, nullable=False)
     estimated_time = Column(Integer, nullable=False)
+    taskidbyfrontend = Column(Integer, nullable=True)
