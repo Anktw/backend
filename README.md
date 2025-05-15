@@ -3,6 +3,9 @@
 🚀 This is backend for most of my projects built using FastAPI and PostgreSQL.
 🐳 For Dockerized version, visit [backend-docker](https://github.com/Anktw/backenddocker)`
 
+![image](https://github.com/user-attachments/assets/8c292a9c-41af-4289-a2b3-e31bb3904a8a)
+
+
 ## Quick Start
 
 1. 📋 Clone repository -> 
