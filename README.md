@@ -24,7 +24,7 @@
 - 📦 Redis
 
 ## Deployment
-After deployment, run migrations
+After deployment, run migrations in console of your server
 ```alembic revision --autogenerate -m "Initial migration"```
 ```alembic upgrade head```
 Some cloud providers
@@ -32,8 +32,9 @@ Some cloud providers
 - Koyeb - [https://www.koyeb.com/](https://www.koyeb.com/)(Recommended)
 - Render - [https://render.com/](https://render.com/)
 - Railway - [https://railway.app/](https://railway.app/)
-- Sevelle - [https://sevelle.io/](https://sevelle.io/)
-For PostgreSQL, you can use any cloud provider like
+- Sevalla - [https://app.sevalla.com/](https://app.sevalla.com/)
+
+For PostgreSQL, you can use
 - Neon - [https://neon.tech/](https://neon.tech/) (Recommended)
 
 ## Acknowledgements
