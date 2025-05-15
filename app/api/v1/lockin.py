@@ -5,6 +5,11 @@ from app.db.session import SessionLocal
 from app.schemas.lockin import TaskOut, TaskCreate, TaskUpdate, SavedTaskOut, SavedTaskCreate, SavedTaskUpdate
 from app.api.deps import get_db, get_current_user
 from typing import List
+from pydantic import BaseModel
+
+class DeleteResponse(BaseModel):
+    message: str
+    taskidbyfrontend: int
 
 router = APIRouter()
 
@@ -18,10 +23,14 @@ def create_task(payload: TaskCreate, db: Session = Depends(get_db), current_user
         completed=payload.completed,
         taskidbyfrontend=payload.taskidbyfrontend,
     )
-    db.add(task)
-    db.commit()
-    db.refresh(task)
-    return task
+    try:
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+        return task
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/tasks", response_model=List[TaskOut])
 def get_tasks(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
@@ -39,14 +48,14 @@ def update_task(taskidbyfrontend: int, payload: TaskUpdate, db: Session = Depend
     db.refresh(task)
     return task
 
-@router.delete("/tasks/{taskidbyfrontend}", response_model=TaskOut)
+@router.delete("/tasks/{taskidbyfrontend}", response_model=DeleteResponse)
 def delete_task(taskidbyfrontend: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     task = db.query(Task).filter(Task.taskidbyfrontend == taskidbyfrontend, Task.username == current_user.username).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     db.delete(task)
     db.commit()
-    return task
+    return DeleteResponse(message="Task deleted successfully", taskidbyfrontend=taskidbyfrontend)
 
 @router.post("/saved-tasks", response_model=SavedTaskOut)
 def create_saved_task(payload: SavedTaskCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
@@ -54,7 +63,6 @@ def create_saved_task(payload: SavedTaskCreate, db: Session = Depends(get_db), c
         username=current_user.username,
         name=payload.name,
         estimated_time=payload.estimated_time,
-        taskidbyfrontend=payload.taskidbyfrontend,
     )
     db.add(task)
     db.commit()
@@ -66,9 +74,9 @@ def get_saved_tasks(db: Session = Depends(get_db), current_user=Depends(get_curr
     tasks = db.query(SavedTask).filter(SavedTask.username == current_user.username).all()
     return tasks
 
-@router.put("/saved-tasks/{taskidbyfrontend}", response_model=SavedTaskOut)
-def update_saved_task(taskidbyfrontend: int, payload: SavedTaskUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    task = db.query(SavedTask).filter(SavedTask.taskidbyfrontend == taskidbyfrontend, SavedTask.username == current_user.username).first()
+@router.put("/saved-tasks/{id}", response_model=SavedTaskOut)
+def update_saved_task(id: int, payload: SavedTaskUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    task = db.query(SavedTask).filter(SavedTask.id == id, SavedTask.username == current_user.username).first()
     if not task:
         raise HTTPException(status_code=404, detail="SavedTask not found")
     for field, value in payload.dict(exclude_unset=True).items():
@@ -77,11 +85,11 @@ def update_saved_task(taskidbyfrontend: int, payload: SavedTaskUpdate, db: Sessi
     db.refresh(task)
     return task
 
-@router.delete("/saved-tasks/{taskidbyfrontend}", response_model=SavedTaskOut)
-def delete_saved_task_by_frontend_id(taskidbyfrontend: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    task = db.query(SavedTask).filter(SavedTask.taskidbyfrontend == taskidbyfrontend, SavedTask.username == current_user.username).first()
+@router.delete("/saved-tasks/{id}", response_model=BaseModel)
+def delete_saved_task_by_id(id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    task = db.query(SavedTask).filter(SavedTask.id == id, SavedTask.username == current_user.username).first()
     if not task:
         raise HTTPException(status_code=404, detail="SavedTask not found")
     db.delete(task)
     db.commit()
-    return task
+    return {"message": "Saved task deleted successfully", "id": id}

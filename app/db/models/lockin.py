@@ -14,8 +14,7 @@ class Task(Base):
 
 class SavedTask(Base):
     __tablename__ = "saved_tasks"
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     username = Column(String, ForeignKey("users.username"), nullable=False)
     name = Column(String, nullable=False)
     estimated_time = Column(Integer, nullable=False)
-    taskidbyfrontend = Column(Integer, nullable=True)
