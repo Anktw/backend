@@ -43,4 +43,3 @@ class User(Base):
     def validate_name(self, key, name):
         self.title = name.title()
         return name.title()
-        
